@@ -2,6 +2,7 @@
 #include <random>
 #include <climits>
 
+#include <iostream>
 
 
 std::string randMessageGen(size_t len)
@@ -18,7 +19,7 @@ int main(int argc, char** argv)
 {
     auto message = std::string("abc");
 
-    SHA256(message.c_str(), message.length());
-
+    auto hashObj = SHA256(message.c_str(), message.length());
+    std::cout << hashObj.printOutputBits().get();
     return 0;
 }

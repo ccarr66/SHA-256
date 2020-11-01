@@ -1,4 +1,4 @@
-#define DEBUG_MACHINE 
+//#define DEBUG_MACHINE 
 
 #ifdef DEBUG_MACHINE
     #include <iostream>
@@ -47,6 +47,97 @@ public:
         else
             throw; //this causes compilation to fail bc it's in constexpr context
     }
+
+
+#ifdef DEBUG_MACHINE
+        void printOutputHex(void) 
+        {
+            std::cout << "\n";
+            for(const auto& word : resultHashValues) 
+                std::cout << std::setfill('0') << std::setw(wordLenInByte * 2) << std::hex << word;
+        }
+        void printOutputBits(void) 
+        {
+            std::cout << "\n";
+            for(const auto& word : resultHashValues) 
+            {
+                for(size_t i = 0; i < wordLen; i++) 
+                {
+                    if(word & (1 << (wordLen - 1 - i)))
+                        std::cout << "1";
+                    else
+                        std::cout << "0";
+                }
+            }
+        }
+#else
+        std::unique_ptr<char[]> printOutputHex(void) 
+        {
+            const auto retStrLen = 16 * wordLenInByte + 1; // chars needed  = 2 char/byte[each nibble] * ..
+                                                           //                 ..* 8 words * #bytes/word
+            auto retStr = std::make_unique<char[]>(retStrLen);
+            auto retStrRef = retStr.get(); 
+                
+            auto endianIdxCorrector = [](size_t byteIdx) {
+                auto correctIdx = size_t{byteIdx};
+                if constexpr(isBigEndian() == false)
+                    correctIdx = wordLenInByte - 1 - byteIdx;
+                return correctIdx;
+            };
+
+            for(const auto& word : resultHashValues) 
+            {
+                auto charPtrToWord = reinterpret_cast<const char*>(&word);
+
+                for(size_t byteIdx = 0; byteIdx < wordLenInByte; byteIdx++)
+                {
+                    const auto byte = *(charPtrToWord + endianIdxCorrector(byteIdx));
+                    const auto upperNibble = static_cast<char>((byte & 0xf0) >> 4);
+                    const auto lowerNibble = static_cast<char>(byte & 0x0f);
+
+                    auto nibbleToASCII = [](char n)
+                    {
+                        auto retVal = n;
+                        if(n >= 0x0 && n <= 0x9)
+                            retVal += 0x30;
+                        else if(n >= 0xA && n <= 0xF)
+                            retVal += 0x41 - 0xA;
+                        else
+                            retVal = 0xFF;
+
+                        return retVal;
+                    };
+
+                    *retStrRef++ = nibbleToASCII(upperNibble);
+                    *retStrRef++ = nibbleToASCII(lowerNibble);
+                }
+            }
+            retStrRef[retStrLen - 1] = '\0';
+            return retStr;
+        }
+        std::unique_ptr<char[]> printOutputBits(void) 
+        {
+            const auto retStrLen = 8 * wordLenInByte * byteLen + 1;
+            auto retStr = std::make_unique<char[]>(retStrLen);
+            auto retStrRef = retStr.get(); 
+
+            auto wordToBits = [](word_ty c, char* &retStrPos) {
+                    for(size_t i = 0; i < wordLen; i++) {
+                        if(c & (1 << (wordLen - 1 - i)))
+                            *retStrPos++ = '1';
+                        else
+                            *retStrPos++ = '0';
+                    }
+                };
+
+                for(const auto& word : resultHashValues)
+                    wordToBits(word, retStrRef);
+
+            retStrRef[retStrLen - 1] = '\0';
+
+            return retStr;
+        }
+#endif
     
 private:
     
@@ -67,7 +158,7 @@ private:
         blockCont(size_t len) : len(len), blockArr(std::make_unique<block_ty[]>(len)) {}
 
 #ifdef DEBUG_MACHINE
-        void print(void) 
+        void printBlocksHex(void) 
         {
             std::cout << "\n";
             for(const auto& block : *this) 
@@ -77,7 +168,7 @@ private:
                     std::cout << std::setfill('0') << std::setw(wordLenInByte * 2) << std::hex << word;
             }
         }
-        void printBits(void) 
+        void printBlocksBits(void) 
         {
             std::cout << "\n";
             for(const auto& block : *this) 
@@ -114,20 +205,21 @@ private:
             return retStr;
         }
         
-        std::unique_ptr<char[]> printBits(void) 
+        std::unique_ptr<char[]> printBlocksBits(void) 
         {
             const auto retStrLen = this->len * wordLenInByte * byteLen + 1;
             auto retStr = std::make_unique<char[]>(retStrLen);
             auto retStrRef = retStr.get(); 
 
-            auto wordToBits = [](word_ty c, char* &retStrPos) {
-                    for(size_t i = 0; i < wordLen; i++) {
-                        if(c & (1 << (wordLen - 1 - i)))
-                            *retStrPos++ = '1';
-                        else
-                            *retStrPos++ = '0';
-                    }
-                };
+            auto wordToBits = [](word_ty c, char* &retStrPos) 
+            {
+                for(size_t i = 0; i < wordLen; i++) {
+                    if(c & (1 << (wordLen - 1 - i)))
+                        *retStrPos++ = '1';
+                    else
+                        *retStrPos++ = '0';
+                }
+            };
 
             for(const auto& block : *this) 
                 for(const auto& word : block)
