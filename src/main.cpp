@@ -20,6 +20,5 @@ int main(int argc, char** argv)
     auto message = std::string("abc");
 
     auto hashObj = SHA256(message.c_str(), message.length());
-    std::cout << hashObj.printOutputBits().get();
     return 0;
 }
