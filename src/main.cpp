@@ -20,5 +20,7 @@ int main(int argc, char** argv)
     auto message = std::string("abc");
 
     auto hashObj = SHA256(message.c_str(), message.length());
+    for(auto& word: hashObj.resultHashValues)
+        std::cout << std::hex << '\t' << word;
     return 0;
 }
